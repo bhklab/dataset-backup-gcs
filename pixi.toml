@@ -1,0 +1,18 @@
+[workspace]
+name = "mongo-gcs-ingestion"
+version = "0.1.0"
+description = "Parallel MongoDB to GCS dataset ingestion"
+channels = ["conda-forge"]
+platforms = ["linux-64", "osx-arm64", "osx-64"]
+
+[dependencies]
+python = ">=3.12,<3.13"
+
+[pypi-dependencies]
+pymongo = ">=4.0,<5"
+google-cloud-storage = ">=3.0,<4"
+requests = ">=2.32,<3"
+python-dotenv = ">=1.0,<2"
+
+[tasks]
+ingest = "python src/mongo_to_gcs.py"

@@ -1,0 +1,4 @@
+.env
+.pixi/
+__pycache__/
+*.pyc
