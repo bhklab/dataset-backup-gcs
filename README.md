@@ -117,7 +117,7 @@ MONGODB_COLLECTION=YOUR_COLLECTION
 # Google Cloud Storage (bucket name only, no gs:// prefix)
 GCS_BUCKET=YOUR_BUCKET
 
-# Performance: starting point for a 16 GB MacBook Pro
+# Performance: configurable defaults
 MAX_WORKERS=12
 CHUNK_SIZE_MB=16
 HTTP_CHUNK_SIZE_MB=1
@@ -127,7 +127,7 @@ MAX_RETRIES=3
 HTTP_USER_AGENT=BHKLab-Dataset-Ingestion/1.0 (+https://github.com/bhklab)
 ```
 
-Use a MongoDB account with read access to the collection.
+Use a MongoDB account with read access to the collection. If credentials contain reserved URI characters, URL-encode them. Never paste real connection strings into issues or commit them to Git.
 
 Ensure `.gitignore` includes:
 
@@ -150,7 +150,13 @@ gcloud auth application-default login
 gcloud config set project YOUR_PROJECT_ID
 ```
 
-The script uses **Application Default Credentials (ADC)** through `google-cloud-storage`. `gcloud config set project` and ADC are separate settings; ensure the authenticated identity can access the destination bucket.
+If needed, associate Application Default Credentials with your billing/quota project:
+
+```bash
+gcloud auth application-default set-quota-project YOUR_PROJECT_ID
+```
+
+The script uses **Application Default Credentials (ADC)** through `google-cloud-storage`. `gcloud config set project` and ADC are separate settings; ensure the authenticated identity can access the destination bucket. On Cloud Run or a VM, prefer an attached service account rather than a downloaded JSON key.
 
 ### Verify connectivity
 
@@ -234,9 +240,9 @@ Numbers above are illustrative. The script reports per-file size, elapsed time, 
 
 A **MongoDB unique index** on `name` is recommended if uniqueness must be guaranteed when other applications write new documents. The script's preflight check is not a substitute for a database constraint.
 
-### No intermediate files, but local network traffic
+### No intermediate files, but network traffic through the execution host
 
-The script reads remote files in small HTTP chunks and writes them through GCS resumable uploads. **It does not save the downloaded dataset files to your MacBook's disk.** However, when run locally, the bytes still travel **through your MacBook's RAM and internet connection**. Its upload bandwidth can therefore limit overall throughput. Running the same pipeline on a Google Cloud VM or Cloud Run Job moves that network traffic off your laptop.
+The script reads remote files in small HTTP chunks and writes them through GCS resumable uploads. **It does not save downloaded dataset files to the local filesystem.** File data still travels through the network connection and memory of the machine running the script, so available upload bandwidth can limit throughput. Running the pipeline on a Google Cloud VM or Cloud Run Job uses the cloud execution environment’s network connection instead.
 
 ### Performance tuning
 
@@ -249,7 +255,15 @@ Default settings are a starting point rather than a universal optimum:
 | `HTTP_CHUNK_SIZE_MB` | `1`     | Amount read per HTTP iteration      |
 | `MAX_RETRIES`        | `3`     | Maximum attempts per file           |
 
+For performance tuning, compare 8, 12, and 16 workers and 16–32 MB GCS chunks, monitoring aggregate throughput, memory usage, and failures. More workers will not help if the execution host’s upload bandwidth is saturated or the source server throttles connections. **GCS chunk sizes must be multiples of 256 KiB.** Benchmark against different not-yet-uploaded files, as existing objects are skipped.
+
 ## Troubleshooting
+
+**`KeyError: 'MONGODB_URI'` (or another environment variable)**  
+Verify `.env` exists in the repository root and that it contains all required keys. Run `pixi run` from the root directory.
+
+**MongoDB connection or authentication failure**  
+Check your URI, credentials, Atlas network allowlist / VPN requirements, and the account's read permissions. Confirm the `MONGODB_DATABASE` and `MONGODB_COLLECTION` values.
 
 **GCS `403 Forbidden` / bucket access errors**  
 Run `gcloud auth application-default login` and check the ADC identity's bucket permissions. Confirm the bucket name is correct and contains no `gs://` prefix.
