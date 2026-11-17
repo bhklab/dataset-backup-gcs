@@ -16,3 +16,4 @@ python-dotenv = ">=1.0,<2"
 
 [tasks]
 ingest = "python src/mongo_to_gcs.py"
+migrate-links = "python src/update_download_links.py"
